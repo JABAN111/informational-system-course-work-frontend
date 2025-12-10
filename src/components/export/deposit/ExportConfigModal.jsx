@@ -87,7 +87,7 @@ const ExportConfigModal = ({open, onClose, onSubmit}) => {
 
         setLoading(true);
 
-        authFetch(`${GET_DEPOSITS}/${passport}`, {method: "GET"})
+        authFetch(`${GET_DEPOSITS}?passport=${encodeURIComponent(passport)}`, {method: "GET"})
             .then((response) => response.json())
             .then((data) => {
                 setAccounts(data);

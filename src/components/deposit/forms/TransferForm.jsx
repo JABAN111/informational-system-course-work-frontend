@@ -13,7 +13,7 @@ import {
     FormControlLabel,
 } from "@mui/material";
 import { createTheme, ThemeProvider } from "@mui/material/styles";
-import {ADD_TO_DEPOSIT, GET_DEPOSITS, TRANSFER} from "../../../config.js";
+import {GET_DEPOSITS, TRANSFER} from "../../../config.js";
 import authFetch from "../../../hooks/authFetch.jsx";
 import '../../../i18n.js'
 import {useTranslation} from "react-i18next";
@@ -56,15 +56,21 @@ const TransferForm = ({onClose, onSubmit}) => {
 
     const handleSendPassport = () => {
         if (!passport) {
-            onSubmit('notifications.pleaseEnterID', 'warn')
+            onSubmit(t('notifications.pleaseEnterID'), 'warn')
             return;
         }
 
         setLoading(true);
-        authFetch(`${GET_DEPOSITS}/${passport}`, {
+        // Используем query параметр вместо path variable
+        authFetch(`${GET_DEPOSITS}?passport=${encodeURIComponent(passport)}`, {
             method: "GET",
         })
-            .then((r) => r.json())
+            .then((r) => {
+                if (!r.ok) {
+                    throw new Error('Failed to fetch accounts');
+                }
+                return r.json();
+            })
             .then((data) => {
                 setAccounts(data);
                 setPassportSent(true);
@@ -72,7 +78,7 @@ const TransferForm = ({onClose, onSubmit}) => {
             })
             .catch((r) => {
                 console.error("Ошибка:", r);
-                onSubmit('notifications.pleaseEnterID', 'warn')
+                onSubmit(t('notifications.operationFailed'), 'error')
                 setLoading(false);
             });
     };
@@ -80,6 +86,10 @@ const TransferForm = ({onClose, onSubmit}) => {
     const handleTransfer = () => {
         if (!fromAccount) {
             onSubmit(t('notifications.pleaseEnter.withdrawAccount'), 'warn')
+            return;
+        }
+        if (!amount || parseFloat(amount) <= 0) {
+            onSubmit(t('notifications.invalidAmount'), 'warn')
             return;
         }
         if (!toAccount && transferToOwnAccount) {
@@ -93,7 +103,7 @@ const TransferForm = ({onClose, onSubmit}) => {
 
         const payload = {
             fromAccount,
-            amount,
+            amount: parseFloat(amount),
             toAccount: transferToOwnAccount ? toAccount : anotherAccount,
         };
 
@@ -101,12 +111,26 @@ const TransferForm = ({onClose, onSubmit}) => {
             method: "POST",
             headers: { "content-type": "application/json" },
             body: JSON.stringify(payload),
-        }).then((response) => {
-            if (response.status === 200) {
+        }).then(async (response) => {
+            if (response.ok) {
                 onSubmit(t('notifications.operationSucceeded'), 'success')
+                // Сброс формы
+                setFromAccount("");
+                setToAccount("");
+                setAnotherAccount("");
+                setAmount("");
+                setPassport("");
+                setPassportSent(false);
+                setAccounts([]);
+                setTransferToOwnAccount(false);
             } else {
+                const error = await response.text();
+                console.error("Ошибка при переводе:", error);
                 onSubmit(t('notifications.operationFailed'), 'error')
             }
+        }).catch(error => {
+            console.error("Ошибка сети:", error);
+            onSubmit(t('notifications.operationFailed'), 'error')
         });
     };
 
@@ -212,7 +236,7 @@ const TransferForm = ({onClose, onSubmit}) => {
                     value={amount}
                     onChange={handleAmountChange}
                     fullWidth
-                    inputProps={{ min: 0 }}
+                    inputProps={{ min: 0, step: "0.01" }}
                     disabled={!passportSent || !fromAccount}
                 />
 

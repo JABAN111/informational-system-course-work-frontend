@@ -46,8 +46,9 @@ const AccountInfoForm = () => {
         setLoading(true);
         setError(null); // Сбрасываем ошибку
 
+        // Используем query параметр вместо path variable
         authFetch(
-            `${GET_DEPOSITS}/${passport}`,
+            `${GET_DEPOSITS}?passport=${encodeURIComponent(passport)}`,
             {
                 method: 'GET',
             }
@@ -60,7 +61,6 @@ const AccountInfoForm = () => {
         })
         setLoading(false);
         setPassportSent(true);
-
     };
 
     const columns = [

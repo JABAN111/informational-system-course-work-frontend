@@ -48,7 +48,7 @@ const ArtifactStorageInfo = () => {
 
         try {
             const response = await authFetch(
-                `http://localhost:8080/api/v0/storage/get-info/${uuid}`,
+                `http://localhost:8080/api/v0/storage/${uuid}`,
                 { method: "GET" }
             );
 

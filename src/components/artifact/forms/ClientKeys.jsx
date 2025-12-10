@@ -48,7 +48,7 @@ const ClientKeys = () => {
 
         try {
             const response = await authFetch(
-                `http://localhost:8080/api/v0/artifact/get-all`,
+                `http://localhost:8080/api/v0/artifact/keys`,
                 {
                     method: "POST",
                     body: JSON.stringify({
