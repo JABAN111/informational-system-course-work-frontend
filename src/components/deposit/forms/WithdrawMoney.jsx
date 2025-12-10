@@ -57,13 +57,18 @@ const WithdrawForm = ({onClose, onSubmit}) => {
 
         setLoading(true);
 
-
+        // Используем query параметр вместо path variable
         authFetch(
-            `${GET_DEPOSITS}/${passport}`,
+            `${GET_DEPOSITS}?passport=${encodeURIComponent(passport)}`,
             {
                 method: 'GET',
             }
-        ).then(r => r.json()).then(
+        ).then(r => {
+            if (!r.ok) {
+                throw new Error('Failed to fetch accounts');
+            }
+            return r.json();
+        }).then(
             data => {
                 console.log(data)
                 setAccounts(data)
@@ -73,6 +78,7 @@ const WithdrawForm = ({onClose, onSubmit}) => {
         ).catch(r => {
             console.error("Невалидный паспорт, ошибка:", r)
             onSubmit(t("notifications.operationFailed"), 'error')
+            setLoading(false)
         })
 
     };

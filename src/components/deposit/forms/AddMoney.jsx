@@ -8,7 +8,7 @@ import InputLabel from "@mui/material/InputLabel";
 import Select from "@mui/material/Select";
 import MenuItem from "@mui/material/MenuItem";
 import {createTheme, ThemeProvider} from "@mui/material/styles";
-import {ADD_TO_DEPOSIT, GET_DEPOSITS, WITHDRAW_DEPOSIT} from "../../../config.js";
+import {ADD_TO_DEPOSIT, GET_DEPOSITS} from "../../../config.js";
 import {useState} from "react";
 import authFetch from "../../../hooks/authFetch.jsx";
 import '../../../i18n.js'
@@ -59,12 +59,18 @@ const AddMoney = ({onClose, onSubmit}) => {
         setLoading(true);
 
         console.log('отправляем паспорт', passport)
+        // Используем query параметр вместо path variable
         authFetch(
-            `${GET_DEPOSITS}/${passport}`,
+            `${GET_DEPOSITS}?passport=${encodeURIComponent(passport)}`,
             {
                 method: 'GET',
             }
-        ).then(r => r.json()).then(
+        ).then(r => {
+            if (!r.ok) {
+                throw new Error('Failed to fetch accounts');
+            }
+            return r.json();
+        }).then(
             data => {
                 console.log(data)
                 setAccounts(data)
@@ -73,16 +79,22 @@ const AddMoney = ({onClose, onSubmit}) => {
             }
         ).catch(r => {
             console.error("Невалидный паспорт, ошибка:", r)
-            onSubmit(t("notifications.pleaseEnterID"), 'warn')
+            onSubmit(t("notifications.operationFailed"), 'error')
+            setLoading(false)
         })
 
     };
 
-    const handleWithdraw = () => {
+    const handleAddMoney = () => {
         if (!selectedAccount) {
             onSubmit(t("notifications.pleaseEnterAccount"), 'warn')
             return;
         }
+        if (!amount || parseFloat(amount) <= 0) {
+            onSubmit(t("notifications.invalidAmount"), 'warn')
+            return;
+        }
+
         authFetch(
             ADD_TO_DEPOSIT, {
                 method: 'POST',
@@ -91,23 +103,30 @@ const AddMoney = ({onClose, onSubmit}) => {
                 },
                 body: JSON.stringify({
                     fromAccount: selectedAccount,
-                    amount: amount,
+                    amount: parseFloat(amount),
                     toAccount: selectedAccount
                 }),
 
-            }).then((response) => {
-            if (response.status === 200) {
-                onSubmit(t('notifications.operationSucceeded', 'success'))
+            }).then(async (response) => {
+            if (response.ok) {
+                onSubmit(t('notifications.operationSucceeded'), 'success')
+                // Сброс формы
+                setSelectedAccount('');
+                setPassport('');
+                setAmount('');
+                setPassportSent(false);
+                setAccounts([]);
             } else {
+                const error = await response.text();
+                console.error("Ошибка при пополнении:", error);
                 onSubmit(t('notifications.operationFailed'), 'error')
             }
+        }).catch(error => {
+            console.error("Ошибка сети:", error);
+            onSubmit(t('notifications.operationFailed'), 'error')
         })
-
-        setSelectedAccount('');
-        setPassport('');
-        setPassportSent(false);
-        setAccounts([]);
     };
+
     return (
         <ThemeProvider theme={theme}>
             <Box
@@ -167,10 +186,10 @@ const AddMoney = ({onClose, onSubmit}) => {
                     value={amount}
                     onChange={handleAmountChange}
                     fullWidth
-                    inputProps={{min: 0}}
+                    inputProps={{min: 0, step: "0.01"}}
                     disabled={!passportSent || !selectedAccount}
                 />
-                <Button variant="contained" onClick={handleWithdraw} disabled={!selectedAccount}>
+                <Button variant="contained" onClick={handleAddMoney} disabled={!selectedAccount}>
                     {t('depositMain.addMoney.buttonPut')}
                 </Button>
             </Box>
